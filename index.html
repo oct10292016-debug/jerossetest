@@ -40,11 +40,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 .product-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding-bottom:12px}
 .prod-btn{background:var(--mt-card);border:0.5px solid var(--mt-border);border-radius:14px;padding:14px 12px;cursor:pointer;text-align:left;position:relative;transition:border-color 0.1s;min-height:90px;display:flex;flex-direction:column;justify-content:space-between}
 .prod-btn.has-qty{border-color:var(--mt-accent);background:#FBF8F5}
-.prod-btn:active{transform:scale(0.97)}
+.prod-btn:active{opacity:0.85}
 .prod-name{font-size:13px;font-weight:500;color:var(--mt-text);line-height:1.4;margin-bottom:6px}
 .prod-cost{font-size:16px;font-weight:600;color:var(--mt-accent);letter-spacing:-0.3px}
 .prod-cost-label{font-size:10px;color:var(--mt-muted);margin-bottom:2px}
-.qty-badge{position:absolute;top:10px;right:10px;width:26px;height:26px;background:var(--mt-accent);color:#fff;border-radius:50%;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.qty-badge{position:absolute;top:8px;right:8px;min-width:28px;height:28px;padding:0 6px;background:var(--mt-accent);color:#fff;border-radius:14px;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;cursor:pointer;gap:3px}
 .series-label{font-size:10px;color:var(--mt-hint);margin-bottom:4px;letter-spacing:0.3px;text-transform:uppercase}
 
 /* Bottom bar */
@@ -102,6 +102,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 .del-btn{background:none;border:none;cursor:pointer;color:var(--mt-hint);font-size:12px;padding:3px 8px;border-radius:6px;white-space:nowrap;flex-shrink:0}
 .del-btn:active{background:#F5E0DC;color:var(--mt-red)}
 .empty-state{text-align:center;padding:3rem 1rem;color:var(--mt-hint);font-size:14px;background:var(--mt-surface);border-radius:16px}
+.month-select-row{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.month-select{flex:1;padding:8px 12px;border:0.5px solid var(--mt-border2);border-radius:10px;background:var(--mt-card);color:var(--mt-text);font-size:14px;font-weight:500;outline:none}
+.chart-wrap{background:var(--mt-card);border:0.5px solid var(--mt-border);border-radius:14px;padding:14px;margin-bottom:16px}
+.chart-title{font-size:11px;color:var(--mt-muted);letter-spacing:0.3px;text-transform:uppercase;margin-bottom:12px}
+.chart-bars{display:flex;align-items:flex-end;gap:4px;height:80px}
+.chart-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+.chart-bar{width:100%;border-radius:4px 4px 0 0;min-height:2px;transition:opacity 0.1s}
+.chart-bar.profit{background:var(--mt-green)}
+.chart-bar.loss{background:var(--mt-red)}
+.chart-bar.active{opacity:0.7}
+.chart-bar-label{font-size:9px;color:var(--mt-muted);white-space:nowrap}
+.chart-bar-val{font-size:9px;font-weight:500;color:var(--mt-muted)}
 
 .c-blue{color:var(--mt-blue)}.c-green{color:var(--mt-green)}.c-red{color:var(--mt-red)}.c-muted{color:var(--mt-muted)}
 </style>
@@ -174,7 +186,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
     <div class="period-bar">
       <button class="period-btn" onclick="setPeriod('today')">今天</button>
       <button class="period-btn active" onclick="setPeriod('month')">本月</button>
+      <button class="period-btn" onclick="setPeriod('pick')">選月份</button>
       <button class="period-btn" onclick="setPeriod('all')">全部</button>
+    </div>
+    <div class="month-select-row" id="monthSelectRow" style="display:none">
+      <select class="month-select" id="monthSelect" onchange="renderStats()">
+      </select>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">近12個月淨利潤</div>
+      <div class="chart-bars" id="chartBars"></div>
     </div>
     <div class="stat-cards">
       <div class="stat-card"><div class="stat-card-label">訂單數</div><div class="stat-card-val" id="sOrders">0</div><div class="stat-card-sub">筆</div></div>
@@ -276,7 +297,7 @@ function renderGrid(){
     const qty=cart[p.name]||0;
     const ai=ALL.indexOf(p);
     return`<button class="prod-btn${qty>0?' has-qty':''}" onclick="addToCart(${ai})" oncontextmenu="removeFromCart(event,${ai})">
-      ${qty>0?`<div class="qty-badge">${qty}</div>`:''}
+      ${qty>0?`<div class="qty-badge" onclick="event.stopPropagation();removeFromCart(event,${ai})">－${qty}</div>`:''}
       <div>
         <div class="series-label">${p.s}</div>
         <div class="prod-name">${p.name}</div>
@@ -298,7 +319,7 @@ function addToCart(idx){
 }
 
 function removeFromCart(e,idx){
-  e.preventDefault();
+  if(e.preventDefault)e.preventDefault();
   const p=ALL[idx];
   if(cart[p.name]>0){
     cart[p.name]--;
@@ -378,18 +399,78 @@ function switchTab(t){
 
 function setPeriod(p){
   curPeriod=p;
-  document.querySelectorAll('.period-btn').forEach((b,i)=>b.classList.toggle('active',['today','month','all'][i]===p));
+  document.querySelectorAll('.period-btn').forEach((b,i)=>b.classList.toggle('active',['today','month','pick','all'][i]===p));
+  const pickRow=document.getElementById('monthSelectRow');
+  pickRow.style.display=p==='pick'?'flex':'none';
+  if(p==='pick') populateMonthSelect();
   renderStats();
+}
+
+function populateMonthSelect(){
+  const sel=document.getElementById('monthSelect');
+  const months=[...new Set(orders.map(o=>{const d=new Date(o.date);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}))].sort().reverse();
+  const now=new Date();
+  const thisMonth=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  if(!months.includes(thisMonth))months.unshift(thisMonth);
+  const cur=sel.value||thisMonth;
+  sel.innerHTML=months.map(m=>`<option value="${m}"${m===cur?' selected':''}>${m.replace('-','年')}月</option>`).join('');
 }
 
 function filterOrders(){
   const now=new Date();
   if(curPeriod==='today'){const t=now.toDateString();return orders.filter(o=>new Date(o.date).toDateString()===t);}
   if(curPeriod==='month'){return orders.filter(o=>{const d=new Date(o.date);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();});}
+  if(curPeriod==='pick'){
+    const val=document.getElementById('monthSelect').value;
+    if(!val)return[];
+    const [y,m]=val.split('-').map(Number);
+    return orders.filter(o=>{const d=new Date(o.date);return d.getFullYear()===y&&d.getMonth()===m-1;});
+  }
   return orders;
 }
 
+function renderChart(){
+  const now=new Date();
+  const months=[];
+  for(let i=11;i>=0;i--){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    months.push({y:d.getFullYear(),m:d.getMonth(),label:(d.getMonth()+1)+'月'});
+  }
+  const data=months.map(({y,m,label})=>{
+    const mo=orders.filter(o=>{const d=new Date(o.date);return d.getFullYear()===y&&d.getMonth()===m;});
+    const profit=mo.reduce((s,o)=>s+o.profit,0);
+    return{label,profit};
+  });
+  const maxAbs=Math.max(...data.map(d=>Math.abs(d.profit)),1);
+  const curM=now.getMonth();
+  const curY=now.getFullYear();
+  document.getElementById('chartBars').innerHTML=data.map(({label,profit},i)=>{
+    const h=Math.max(Math.round(Math.abs(profit)/maxAbs*70),2);
+    const cls=profit>=0?'profit':'loss';
+    const isActive=i===11;
+    const val=profit===0?'':( Math.abs(profit)>=1000?(Math.round(Math.abs(profit)/100)/10)+'k':'');
+    return`<div class="chart-bar-wrap" onclick="jumpToMonth(${i})">
+      <div class="chart-bar-val">${val}</div>
+      <div class="chart-bar ${cls}${isActive?' active':''}" style="height:${h}px"></div>
+      <div class="chart-bar-label">${label}</div>
+    </div>`;
+  }).join('');
+}
+
+function jumpToMonth(idx){
+  const now=new Date();
+  const d=new Date(now.getFullYear(),now.getMonth()-(11-idx),1);
+  const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  curPeriod='pick';
+  document.querySelectorAll('.period-btn').forEach((b,i)=>b.classList.toggle('active',i===2));
+  document.getElementById('monthSelectRow').style.display='flex';
+  populateMonthSelect();
+  document.getElementById('monthSelect').value=key;
+  renderStats();
+}
+
 function renderStats(){
+  renderChart();
   const filtered=filterOrders();let tR=0,tP=0;filtered.forEach(o=>{tR+=o.rev;tP+=o.profit;});
   const avg=tR>0?tP/tR*100:null;
   document.getElementById('sOrders').textContent=filtered.length;
