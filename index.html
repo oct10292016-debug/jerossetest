@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="婕樂纖">
+<meta name="theme-color" content="#8B6F5E">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>婕樂纖 點單</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;background:#F5F0EB;color:#2C2420;display:flex;flex-direction:column}
+:root{
+  --mt-card:#fff;--mt-border:#E8DDD4;--mt-border2:#D4C4B8;
+  --mt-text:#2C2420;--mt-muted:#8C7B72;--mt-hint:#B8A89E;
+  --mt-surface:#F2EBE4;--mt-surface2:#EDE4DA;--mt-accent:#8B6F5E;
+  --mt-green:#4A7C59;--mt-red:#A0453A;--mt-blue:#5E7EA0;
+  --safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);
+}
+
+/* Header */
+.header{background:#FAF6F1;border-bottom:0.5px solid var(--mt-border);padding:calc(10px + var(--safe-top)) 14px 10px;flex-shrink:0}
+.header-row{display:flex;align-items:center;gap:10px}
+.app-title{font-size:16px;font-weight:600;color:var(--mt-text);flex:1}
+.level-select{padding:6px 12px;border:0.5px solid var(--mt-border2);border-radius:20px;background:var(--mt-card);color:var(--mt-text);font-size:13px;font-weight:500;outline:none}
+.sell-type-select{padding:6px 10px;border:0.5px solid var(--mt-border2);border-radius:20px;background:var(--mt-card);color:var(--mt-text);font-size:12px;outline:none;max-width:130px}
+
+/* Tab bar */
+.tab-bar{display:flex;background:#FAF6F1;border-bottom:0.5px solid var(--mt-border);flex-shrink:0;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.tab-bar::-webkit-scrollbar{display:none}
+.series-tab{padding:9px 16px;font-size:13px;font-weight:500;color:var(--mt-muted);border:none;background:none;cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;flex-shrink:0}
+.series-tab.active{color:var(--mt-accent);border-bottom-color:var(--mt-accent)}
+
+/* Grid */
+.grid-area{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 12px 0}
+.product-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;padding-bottom:12px}
+.prod-btn{background:var(--mt-card);border:0.5px solid var(--mt-border);border-radius:14px;padding:14px 12px;cursor:pointer;text-align:left;position:relative;transition:border-color 0.1s;min-height:90px;display:flex;flex-direction:column;justify-content:space-between}
+.prod-btn.has-qty{border-color:var(--mt-accent);background:#FBF8F5}
+.prod-btn:active{transform:scale(0.97)}
+.prod-name{font-size:13px;font-weight:500;color:var(--mt-text);line-height:1.4;margin-bottom:6px}
+.prod-cost{font-size:16px;font-weight:600;color:var(--mt-accent);letter-spacing:-0.3px}
+.prod-cost-label{font-size:10px;color:var(--mt-muted);margin-bottom:2px}
+.qty-badge{position:absolute;top:10px;right:10px;width:26px;height:26px;background:var(--mt-accent);color:#fff;border-radius:50%;font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.series-label{font-size:10px;color:var(--mt-hint);margin-bottom:4px;letter-spacing:0.3px;text-transform:uppercase}
+
+/* Bottom bar */
+.bottom-bar{flex-shrink:0;background:#FAF6F1;border-top:0.5px solid var(--mt-border);padding:10px 14px calc(10px + var(--safe-bottom))}
+.bottom-summary{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.summary-nums{flex:1;display:flex;gap:14px}
+.sum-item{display:flex;flex-direction:column}
+.sum-label{font-size:10px;color:var(--mt-muted);letter-spacing:0.3px;text-transform:uppercase;margin-bottom:2px}
+.sum-val{font-size:17px;font-weight:600;letter-spacing:-0.4px}
+.clear-btn{padding:8px 14px;background:var(--mt-surface2);color:var(--mt-muted);border:0.5px solid var(--mt-border2);border-radius:20px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.clear-btn:active{opacity:0.8}
+.bottom-actions{display:flex;gap:8px}
+.note-input-small{flex:1;padding:10px 12px;border:0.5px solid var(--mt-border);border-radius:12px;background:var(--mt-card);color:var(--mt-text);font-size:13px;outline:none}
+.note-input-small::placeholder{color:var(--mt-hint)}
+.save-btn{padding:10px 20px;background:var(--mt-accent);color:#FAF6F1;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.save-btn:active{opacity:0.85}
+
+/* Cart items overlay */
+.cart-preview{display:none;background:var(--mt-surface);border-radius:10px;padding:8px 12px;margin-bottom:8px;max-height:100px;overflow-y:auto}
+.cart-preview.show{display:block}
+.cart-row{display:flex;justify-content:space-between;font-size:12px;color:var(--mt-text);padding:2px 0}
+.cart-row-name{color:var(--mt-muted)}
+.cart-row-qty{font-weight:500;color:var(--mt-accent)}
+
+/* Bottom nav */
+.bottom-nav{display:flex;background:var(--mt-card);border-top:0.5px solid var(--mt-border);padding-bottom:var(--safe-bottom);flex-shrink:0}
+.nav-btn{flex:1;padding:10px 8px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;border:none;background:none;cursor:pointer;color:var(--mt-hint);font-size:10px;font-weight:500}
+.nav-btn.active{color:var(--mt-accent)}
+.nav-icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.page{display:none}.page.active{display:contents}
+
+/* Stats page */
+.stats-wrap{flex:1;overflow-y:auto;padding:16px 14px calc(16px + var(--safe-bottom))}
+.period-bar{display:flex;gap:2px;background:var(--mt-surface);border-radius:12px;padding:3px;margin-bottom:16px}
+.period-btn{flex:1;padding:7px;text-align:center;font-size:13px;font-weight:500;color:var(--mt-muted);border:none;background:none;border-radius:9px;cursor:pointer}
+.period-btn.active{background:var(--mt-card);color:var(--mt-text);border:0.5px solid var(--mt-border)}
+.stat-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:16px}
+.stat-card{background:var(--mt-surface2);border-radius:14px;padding:14px}
+.stat-card-label{font-size:10px;color:var(--mt-muted);letter-spacing:0.4px;margin-bottom:5px;text-transform:uppercase}
+.stat-card-val{font-size:22px;font-weight:600;letter-spacing:-0.5px}
+.stat-card-sub{font-size:11px;color:var(--mt-muted);margin-top:2px}
+.divider{height:0.5px;background:var(--mt-border);margin:4px 0 14px}
+.list-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.list-title{font-size:14px;font-weight:500}
+.list-count{font-size:12px;color:var(--mt-muted)}
+.orders-list{display:flex;flex-direction:column;gap:8px}
+.order-row{background:var(--mt-card);border:0.5px solid var(--mt-border);border-radius:12px;padding:12px 14px}
+.order-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:5px}
+.order-note-text{font-size:13px;font-weight:500}
+.order-level{font-size:11px;color:var(--mt-muted);font-weight:400}
+.order-date{font-size:11px;color:var(--mt-hint);margin-top:1px}
+.order-items-str{font-size:12px;color:var(--mt-muted);margin-bottom:7px;line-height:1.5}
+.order-nums{display:flex;gap:12px;flex-wrap:wrap}
+.onum{font-size:12px;font-weight:500}
+.del-btn{background:none;border:none;cursor:pointer;color:var(--mt-hint);font-size:12px;padding:3px 8px;border-radius:6px;white-space:nowrap;flex-shrink:0}
+.del-btn:active{background:#F5E0DC;color:var(--mt-red)}
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--mt-hint);font-size:14px;background:var(--mt-surface);border-radius:16px}
+
+.c-blue{color:var(--mt-blue)}.c-green{color:var(--mt-green)}.c-red{color:var(--mt-red)}.c-muted{color:var(--mt-muted)}
+</style>
+</head>
+<body>
+
+<!-- POS Page -->
+<div id="page-pos" class="page active" style="display:flex;flex-direction:column;flex:1;overflow:hidden">
+
+  <div class="header">
+    <div class="header-row">
+      <span class="app-title">婕樂纖</span>
+      <select class="level-select" id="myLevel" onchange="renderGrid()">
+        <option value="皇家輔導">皇家輔導</option>
+        <option value="一級輔導">一級輔導</option>
+        <option value="二級輔導">二級輔導</option>
+        <option value="三級輔導">三級輔導</option>
+        <option value="三級零售">三級零售</option>
+        <option value="實習" selected>實習</option>
+      </select>
+      <select class="sell-type-select" id="sellType" onchange="renderGrid()">
+        <option value="r0">零售價</option>
+        <option value="r1">任兩盒</option>
+        <option value="r2">VIP價</option>
+        <option disabled>── 進貨價 ──</option>
+        <option value="c_一級輔導">一級進貨</option>
+        <option value="c_二級輔導">二級進貨</option>
+        <option value="c_三級輔導">三級進貨</option>
+        <option value="c_三級零售">零售進貨</option>
+        <option value="c_實習">實習進貨</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="tab-bar" id="tabBar"></div>
+
+  <div class="grid-area">
+    <div class="product-grid" id="productGrid"></div>
+  </div>
+
+  <div class="bottom-bar">
+    <div class="cart-preview" id="cartPreview"></div>
+    <div class="bottom-summary">
+      <div class="summary-nums">
+        <div class="sum-item">
+          <span class="sum-label">營收</span>
+          <span class="sum-val c-blue" id="sumRev">NT$0</span>
+        </div>
+        <div class="sum-item">
+          <span class="sum-label">利潤</span>
+          <span class="sum-val" id="sumProfit">NT$0</span>
+        </div>
+        <div class="sum-item">
+          <span class="sum-label">利潤率</span>
+          <span class="sum-val" id="sumMargin">—</span>
+        </div>
+      </div>
+      <button class="clear-btn" onclick="clearCart()">清空</button>
+    </div>
+    <div class="bottom-actions">
+      <input class="note-input-small" id="orderNote" type="text" placeholder="備註（客戶名稱）">
+      <button class="save-btn" onclick="saveOrder()">儲存訂單</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stats Page -->
+<div id="page-stats" class="page" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+  <div class="stats-wrap">
+    <div class="period-bar">
+      <button class="period-btn" onclick="setPeriod('today')">今天</button>
+      <button class="period-btn active" onclick="setPeriod('month')">本月</button>
+      <button class="period-btn" onclick="setPeriod('all')">全部</button>
+    </div>
+    <div class="stat-cards">
+      <div class="stat-card"><div class="stat-card-label">訂單數</div><div class="stat-card-val" id="sOrders">0</div><div class="stat-card-sub">筆</div></div>
+      <div class="stat-card"><div class="stat-card-label">總營收</div><div class="stat-card-val c-blue" id="sRev">NT$0</div><div class="stat-card-sub">銷售金額</div></div>
+      <div class="stat-card"><div class="stat-card-label">總利潤</div><div class="stat-card-val" id="sProfit">NT$0</div><div class="stat-card-sub">淨利潤</div></div>
+      <div class="stat-card"><div class="stat-card-label">平均利潤率</div><div class="stat-card-val" id="sMargin">—</div><div class="stat-card-sub">加權平均</div></div>
+    </div>
+    <div class="divider"></div>
+    <div class="list-header">
+      <span class="list-title">訂單明細</span>
+      <span class="list-count" id="orderCount"></span>
+    </div>
+    <div class="orders-list" id="ordersList"></div>
+  </div>
+</div>
+
+<!-- Bottom nav -->
+<div class="bottom-nav">
+  <button class="nav-btn active" id="nav-pos" onclick="switchTab('pos')">
+    <div class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+    點單
+  </button>
+  <button class="nav-btn" id="nav-stats" onclick="switchTab('stats')">
+    <div class="nav-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+    統計
+  </button>
+</div>
+
+<script>
+const ALL=[
+  {name:"纖纖飲",s:"纖體保健",costs:{皇家輔導:700,一級輔導:790,二級輔導:880,三級輔導:955,三級零售:990,實習:1160},retail:[1480,1380,1280]},
+  {name:"纖飄錠",s:"纖體保健",costs:{皇家輔導:700,一級輔導:790,二級輔導:880,三級輔導:955,三級零售:990,實習:1160},retail:[1480,1380,1280]},
+  {name:"爆纖錠",s:"纖體保健",costs:{皇家輔導:430,一級輔導:470,二級輔導:520,三級輔導:560,三級零售:580,實習:660},retail:[880,800,740]},
+  {name:"爆纖錠體驗包",s:"纖體保健",costs:{皇家輔導:120,一級輔導:133,二級輔導:146,三級輔導:158,三級零售:164,實習:190},retail:[240,null,null]},
+  {name:"纖酵宿",s:"纖體保健",costs:{皇家輔導:440,一級輔導:510,二級輔導:580,三級輔導:635,三級零售:660,實習:780},retail:[990,900,830]},
+  {name:"纖酵宿體驗包",s:"纖體保健",costs:{皇家輔導:75,一級輔導:89,二級輔導:103,三級輔導:113,三級零售:117,實習:145},retail:[190,null,null]},
+  {name:"肽纖飲(可可/奶茶)",s:"纖體保健",costs:{皇家輔導:440,一級輔導:510,二級輔導:580,三級輔導:635,三級零售:660,實習:780},retail:[990,900,830]},
+  {name:"紫纖飲",s:"纖體保健",costs:{皇家輔導:440,一級輔導:510,二級輔導:580,三級輔導:635,三級零售:660,實習:780},retail:[990,900,830]},
+  {name:"葉黃素EX飲",s:"纖體保健",costs:{皇家輔導:500,一級輔導:570,二級輔導:640,三級輔導:695,三級零售:720,實習:840},retail:[1080,990,900]},
+  {name:"葉黃素品亮凍",s:"纖體保健",costs:{皇家輔導:320,一級輔導:365,二級輔導:410,三級輔導:440,三級零售:455,實習:530},retail:[680,630,600]},
+  {name:"益生菌",s:"纖體保健",costs:{皇家輔導:620,一級輔導:690,二級輔導:770,三級輔導:830,三級零售:860,實習:990},retail:[1280,1180,1100]},
+  {name:"9國",s:"纖體保健",costs:{皇家輔導:320,一級輔導:365,二級輔導:410,三級輔導:440,三級零售:455,實習:530},retail:[680,630,600]},
+  {name:"正冠茶",s:"纖體保健",costs:{皇家輔導:440,一級輔導:510,二級輔導:580,三級輔導:635,三級零售:660,實習:780},retail:[990,900,830]},
+  {name:"固樂纖",s:"纖體保健",costs:{皇家輔導:740,一級輔導:830,二級輔導:920,三級輔導:1040,三級零售:1080,實習:1260},retail:[1680,1580,1480]},
+  {name:"水光錠",s:"美肌",costs:{皇家輔導:740,一級輔導:830,二級輔導:920,三級輔導:1040,三級零售:1080,實習:1260},retail:[1680,1580,1480]},
+  {name:"水光繃帶面膜精裝盒",s:"美肌",costs:{皇家輔導:360,一級輔導:400,二級輔導:450,三級輔導:485,三級零售:500,實習:550},retail:[700,650,600]},
+  {name:"雪聚露",s:"美肌",costs:{皇家輔導:620,一級輔導:690,二級輔導:770,三級輔導:830,三級零售:860,實習:990},retail:[1280,1180,1100]},
+  {name:"婕肌零(200ml)",s:"美肌",costs:{皇家輔導:440,一級輔導:510,二級輔導:580,三級輔導:635,三級零售:660,實習:780},retail:[990,900,830]},
+  {name:"婕肌零體驗包(7ml)",s:"美肌",costs:{皇家輔導:15,一級輔導:17,二級輔導:20,三級輔導:24,三級零售:25,實習:30},retail:[40,null,null]},
+  {name:"玻尿酸保濕原液",s:"美肌",costs:{皇家輔導:440,一級輔導:510,二級輔導:580,三級輔導:635,三級零售:660,實習:780},retail:[990,900,830]},
+  {name:"急救小白瓶(100ml)",s:"美肌",costs:{皇家輔導:620,一級輔導:690,二級輔導:770,三級輔導:830,三級零售:860,實習:990},retail:[1280,1180,1100]},
+  {name:"積雪草護手霜",s:"美肌",costs:{皇家輔導:320,一級輔導:365,二級輔導:410,三級輔導:440,三級零售:455,實習:530},retail:[680,630,600]},
+  {name:"法樂蓬洗髮露500ml",s:"美肌",costs:{皇家輔導:620,一級輔導:690,二級輔導:770,三級輔導:830,三級零售:860,實習:990},retail:[1280,1180,1100]},
+  {name:"法樂蓬洗髮露體驗包8ml",s:"美肌",costs:{皇家輔導:12,一級輔導:14,二級輔導:17,三級輔導:20,三級零售:21,實習:24},retail:[30,null,null]},
+  {name:"法樂蓬養髮原液(30ml)",s:"美肌",costs:{皇家輔導:500,一級輔導:570,二級輔導:640,三級輔導:695,三級零售:720,實習:840},retail:[1080,990,900]},
+];
+
+const SERIES=[...new Set(ALL.map(p=>p.s))];
+let curSeries=SERIES[0];
+let cart={};
+let curPeriod='month';
+let orders=JSON.parse(localStorage.getItem('jerosse-orders')||'[]');
+function saveStorage(){localStorage.setItem('jerosse-orders',JSON.stringify(orders));}
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+
+function getLevel(){return document.getElementById('myLevel').value;}
+function getSellType(){return document.getElementById('sellType').value;}
+
+function getSellPrice(p,pt){
+  if(pt.startsWith('c_')){return p.costs[pt.slice(2)]||0;}
+  const idx=parseInt(pt.replace('r',''));
+  let sp=p.retail[isNaN(idx)?0:idx];
+  if(sp==null)sp=p.retail[0];
+  return sp||0;
+}
+
+function fmt(n){return'NT$'+Math.round(n).toLocaleString();}
+
+// Tab bar
+function renderTabs(){
+  const bar=document.getElementById('tabBar');
+  bar.innerHTML=SERIES.map(s=>`<button class="series-tab${s===curSeries?' active':''}" onclick="selectSeries('${s}')">${s}</button>`).join('');
+}
+
+function selectSeries(s){
+  curSeries=s;
+  renderTabs();
+  renderGrid();
+}
+
+function renderGrid(){
+  const lv=getLevel(),pt=getSellType();
+  const filtered=ALL.filter(p=>p.s===curSeries);
+  const grid=document.getElementById('productGrid');
+  grid.innerHTML=filtered.map((p,i)=>{
+    const cost=p.costs[lv]||0;
+    const sp=getSellPrice(p,pt);
+    const qty=cart[p.name]||0;
+    const ai=ALL.indexOf(p);
+    return`<button class="prod-btn${qty>0?' has-qty':''}" onclick="addToCart(${ai})" oncontextmenu="removeFromCart(event,${ai})">
+      ${qty>0?`<div class="qty-badge">${qty}</div>`:''}
+      <div>
+        <div class="series-label">${p.s}</div>
+        <div class="prod-name">${p.name}</div>
+      </div>
+      <div>
+        <div class="prod-cost-label">進貨 NT$${cost}</div>
+        <div class="prod-cost">售 NT$${sp}</div>
+      </div>
+    </button>`;
+  }).join('');
+  updateSummary();
+}
+
+function addToCart(idx){
+  const p=ALL[idx];
+  cart[p.name]=(cart[p.name]||0)+1;
+  renderGrid();
+  renderCartPreview();
+}
+
+function removeFromCart(e,idx){
+  e.preventDefault();
+  const p=ALL[idx];
+  if(cart[p.name]>0){
+    cart[p.name]--;
+    if(cart[p.name]===0)delete cart[p.name];
+  }
+  renderGrid();
+  renderCartPreview();
+}
+
+function clearCart(){
+  cart={};
+  document.getElementById('orderNote').value='';
+  renderGrid();
+  renderCartPreview();
+}
+
+function renderCartPreview(){
+  const preview=document.getElementById('cartPreview');
+  const items=Object.entries(cart).filter(([,q])=>q>0);
+  if(!items.length){preview.classList.remove('show');return;}
+  preview.classList.add('show');
+  preview.innerHTML=items.map(([name,qty])=>`<div class="cart-row"><span class="cart-row-name">${name}</span><span class="cart-row-qty">×${qty}</span></div>`).join('');
+}
+
+function updateSummary(){
+  const lv=getLevel(),pt=getSellType();
+  let tR=0,tP=0;
+  Object.entries(cart).forEach(([name,qty])=>{
+    if(qty<=0)return;
+    const p=ALL.find(x=>x.name===name);if(!p)return;
+    const cost=p.costs[lv]||0;
+    const sp=getSellPrice(p,pt);
+    tR+=sp*qty;tP+=(sp-cost)*qty;
+  });
+  const avg=tR>0?tP/tR*100:null;
+  document.getElementById('sumRev').textContent=fmt(tR);
+  const pe=document.getElementById('sumProfit');
+  pe.textContent=fmt(tP);pe.className='sum-val '+(tP>=0?'c-green':'c-red');
+  const me=document.getElementById('sumMargin');
+  me.textContent=avg!==null?avg.toFixed(1)+'%':'—';
+  me.className='sum-val '+(avg===null?'c-muted':avg>=0?'c-green':'c-red');
+}
+
+function saveOrder(){
+  const items=Object.entries(cart).filter(([,q])=>q>0);
+  if(!items.length){alert('請先選擇商品');return;}
+  const lv=getLevel(),pt=getSellType();
+  const note=document.getElementById('orderNote').value.trim();
+  let tR=0,tP=0;
+  const orderItems=items.map(([name,qty])=>{
+    const p=ALL.find(x=>x.name===name);
+    const cost=p?p.costs[lv]||0:0;
+    const sp=p?getSellPrice(p,pt):0;
+    const rev=sp*qty,profit=(sp-cost)*qty;
+    tR+=rev;tP+=profit;
+    return{name,qty,rev,profit,cost};
+  });
+  const now=new Date();
+  orders.unshift({
+    id:Date.now(),date:now.toISOString(),
+    dateStr:now.toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}),
+    level:lv,note,items:orderItems,rev:tR,profit:tP,margin:tR>0?tP/tR*100:0
+  });
+  saveStorage();
+  clearCart();
+  alert('訂單已儲存！');
+}
+
+function switchTab(t){
+  ['pos','stats'].forEach(id=>{
+    const pg=document.getElementById('page-'+id);
+    pg.style.display=id===t?'flex':'none';
+    document.getElementById('nav-'+id).classList.toggle('active',id===t);
+  });
+  if(t==='stats')renderStats();
+}
+
+function setPeriod(p){
+  curPeriod=p;
+  document.querySelectorAll('.period-btn').forEach((b,i)=>b.classList.toggle('active',['today','month','all'][i]===p));
+  renderStats();
+}
+
+function filterOrders(){
+  const now=new Date();
+  if(curPeriod==='today'){const t=now.toDateString();return orders.filter(o=>new Date(o.date).toDateString()===t);}
+  if(curPeriod==='month'){return orders.filter(o=>{const d=new Date(o.date);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();});}
+  return orders;
+}
+
+function renderStats(){
+  const filtered=filterOrders();let tR=0,tP=0;filtered.forEach(o=>{tR+=o.rev;tP+=o.profit;});
+  const avg=tR>0?tP/tR*100:null;
+  document.getElementById('sOrders').textContent=filtered.length;
+  document.getElementById('sRev').textContent=fmt(tR);
+  const sp=document.getElementById('sProfit');sp.textContent=fmt(tP);sp.className='stat-card-val '+(tP>=0?'c-green':'c-red');
+  const sm=document.getElementById('sMargin');sm.textContent=avg!==null?avg.toFixed(1)+'%':'—';sm.className='stat-card-val '+(avg===null?'c-muted':avg>=0?'c-green':'c-red');
+  document.getElementById('orderCount').textContent=filtered.length+'筆';
+  const list=document.getElementById('ordersList');
+  if(!filtered.length){list.innerHTML='<div class="empty-state">此期間尚無訂單記錄</div>';return;}
+  list.innerHTML=filtered.map(o=>{const pc=o.profit>=0?'c-green':'c-red';return`<div class="order-row"><div class="order-top"><div><div class="order-note-text">${o.note||'未備註'} <span class="order-level">· ${o.level}</span></div><div class="order-date">${o.dateStr}</div></div><button class="del-btn" onclick="deleteOrder(${o.id})">刪除</button></div><div class="order-items-str">${o.items.map(i=>i.name+' ×'+i.qty).join('、')}</div><div class="order-nums"><span class="onum c-blue">營收 ${fmt(o.rev)}</span><span class="onum ${pc}">利潤 ${fmt(o.profit)}</span><span class="onum c-muted">${o.margin.toFixed(1)}%</span></div></div>`;}).join('');
+}
+
+function deleteOrder(id){if(!confirm('確定刪除？'))return;orders=orders.filter(o=>o.id!==id);saveStorage();renderStats();}
+
+renderTabs();
+renderGrid();
+</script>
+</body>
+</html>

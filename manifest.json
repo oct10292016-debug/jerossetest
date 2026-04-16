@@ -1,0 +1,14 @@
+{
+  "name": "婕樂纖 利潤計算機",
+  "short_name": "婕樂纖",
+  "description": "婕樂纖商品利潤計算與訂單記錄",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#FAF6F1",
+  "theme_color": "#8B6F5E",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
