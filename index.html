@@ -116,6 +116,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 .chart-bar-val{font-size:9px;font-weight:500;color:var(--mt-muted)}
 
 .c-blue{color:var(--mt-blue)}.c-green{color:var(--mt-green)}.c-red{color:var(--mt-red)}.c-muted{color:var(--mt-muted)}
+.gift-btn{border-color:#C8A882;background:#FBF5EE}
+.gift-btn.has-qty{border-color:#8B6F5E;background:#F5EBE0}
+.gift-btn .prod-cost{color:#8B6F5E}
+.biz-btn{border-color:#A8C8B8;background:#F0F7F4}
+.biz-btn.has-qty{border-color:#4A7C59;background:#E8F4EE}
+.biz-btn .prod-cost{color:#4A7C59;font-size:18px}
+.manual-wrap{background:var(--mt-card);border:0.5px solid var(--mt-border);border-radius:14px;padding:14px;margin-bottom:16px}
+.manual-title{font-size:11px;color:var(--mt-muted);letter-spacing:0.3px;text-transform:uppercase;margin-bottom:10px}
+.manual-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:center;margin-bottom:8px}
+.manual-input{padding:8px 10px;border:0.5px solid var(--mt-border);border-radius:10px;background:var(--mt-surface);color:var(--mt-text);font-size:13px;outline:none;width:100%}
+.manual-input::placeholder{color:var(--mt-hint)}
+.manual-add-btn{padding:8px 14px;background:var(--mt-accent);color:#FAF6F1;border:none;border-radius:10px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.manual-add-btn:active{opacity:0.85}
+.manual-list{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.manual-item{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;background:var(--mt-surface);border-radius:8px;font-size:13px}
+.manual-item-left{color:var(--mt-muted)}
+.manual-item-right{font-weight:500}
+.manual-del{background:none;border:none;cursor:pointer;color:var(--mt-hint);font-size:12px;padding:2px 6px;border-radius:6px}
+.manual-del:active{color:var(--mt-red)}
 </style>
 </head>
 <body>
@@ -204,6 +223,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
       <div class="stat-card"><div class="stat-card-label">平均利潤率</div><div class="stat-card-val" id="sMargin">—</div><div class="stat-card-sub">加權平均</div></div>
     </div>
     <div class="divider"></div>
+    <div class="manual-wrap">
+      <div class="manual-title">手動補登淨利（歷史資料）</div>
+      <div class="manual-row">
+        <input class="manual-input" id="manualMonth" type="month" style="font-size:13px">
+        <input class="manual-input" id="manualProfit" type="number" placeholder="淨利金額">
+        <button class="manual-add-btn" onclick="addManual()">新增</button>
+      </div>
+      <div class="manual-list" id="manualList"></div>
+    </div>
+    <div class="divider"></div>
     <div class="list-header">
       <span class="list-title">訂單明細</span>
       <span class="list-count" id="orderCount"></span>
@@ -251,9 +280,15 @@ const ALL=[
   {name:"法樂蓬洗髮露500ml",s:"美肌",costs:{皇家輔導:620,一級輔導:690,二級輔導:770,三級輔導:830,三級零售:860,實習:990},retail:[1280,1180,1100]},
   {name:"法樂蓬洗髮露體驗包8ml",s:"美肌",costs:{皇家輔導:12,一級輔導:14,二級輔導:17,三級輔導:20,三級零售:21,實習:24},retail:[30,null,null]},
   {name:"法樂蓬養髮原液(30ml)",s:"美肌",costs:{皇家輔導:500,一級輔導:570,二級輔導:640,三級輔導:695,三級零售:720,實習:840},retail:[1080,990,900]},
+  {name:"返利 10,000",s:"創業",costs:{皇家輔導:0,一級輔導:0,二級輔導:0,三級輔導:0,三級零售:0,實習:0},retail:[10000,10000,10000],fixed:10000},
+  {name:"返利 1,000",s:"創業",costs:{皇家輔導:0,一級輔導:0,二級輔導:0,三級輔導:0,三級零售:0,實習:0},retail:[1000,1000,1000],fixed:1000},
+  {name:"返利 100",s:"創業",costs:{皇家輔導:0,一級輔導:0,二級輔導:0,三級輔導:0,三級零售:0,實習:0},retail:[100,100,100],fixed:100},
+  {name:"返利 10",s:"創業",costs:{皇家輔導:0,一級輔導:0,二級輔導:0,三級輔導:0,三級零售:0,實習:0},retail:[10,10,10],fixed:10},
+  {name:"運費",s:"創業",costs:{皇家輔導:0,一級輔導:0,二級輔導:0,三級輔導:0,三級零售:0,實習:0},retail:[70,70,70],fixed:70},
+  {name:"超商運費",s:"創業",costs:{皇家輔導:0,一級輔導:0,二級輔導:0,三級輔導:0,三級零售:0,實習:0},retail:[60,60,60],fixed:60},
 ];
 
-const SERIES=[...new Set(ALL.map(p=>p.s))];
+const SERIES=[...new Set(ALL.filter(p=>p.s!=='創業').map(p=>p.s)),'創業','贈品'];
 let curSeries=SERIES[0];
 let cart={};
 let curPeriod='month';
@@ -265,7 +300,9 @@ if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').cat
 function getLevel(){return document.getElementById('myLevel').value;}
 function getSellType(){return document.getElementById('sellType').value;}
 
+function isGift(p){return p&&p.s==='贈品';}
 function getSellPrice(p,pt){
+  if(isGift(p))return 0;
   if(pt.startsWith('c_')){return p.costs[pt.slice(2)]||0;}
   const idx=parseInt(pt.replace('r',''));
   let sp=p.retail[isNaN(idx)?0:idx];
@@ -289,22 +326,33 @@ function selectSeries(s){
 
 function renderGrid(){
   const lv=getLevel(),pt=getSellType();
-  const filtered=ALL.filter(p=>p.s===curSeries);
+  const isGiftTab=curSeries==='贈品';
+  const isBizTab=curSeries==='創業';
+  const filtered=isGiftTab
+    ?ALL.filter(p=>p.s!=='創業'&&p.s!=='贈品').map(p=>({...p,s:'贈品',_orig:p}))
+    :ALL.filter(p=>p.s===curSeries);
   const grid=document.getElementById('productGrid');
-  grid.innerHTML=filtered.map((p,i)=>{
-    const cost=p.costs[lv]||0;
-    const sp=getSellPrice(p,pt);
-    const qty=cart[p.name]||0;
-    const ai=ALL.indexOf(p);
-    return`<button class="prod-btn${qty>0?' has-qty':''}" onclick="addToCart(${ai})" oncontextmenu="removeFromCart(event,${ai})">
-      ${qty>0?`<div class="qty-badge" onclick="event.stopPropagation();removeFromCart(event,${ai})">－${qty}</div>`:''}
+  grid.innerHTML=filtered.map((p)=>{
+    const origP=p._orig||p;
+    const isBizTab=curSeries==='創業';
+    const cost=isGiftTab?0:(isBizTab?0:(origP.costs[lv]||0));
+    const sp=isGiftTab?0:(isBizTab?(origP.fixed||origP.retail[0]||0):getSellPrice(origP,pt));
+    const cartKey=isGiftTab?('贈品_'+origP.name):(isBizTab?('創業_'+origP.name):origP.name);
+    const qty=cart[cartKey]||0;
+    const ai=ALL.indexOf(origP);
+    const btnClass=isGiftTab?'gift-btn':(isBizTab?'biz-btn':'');
+    const seriesLabel=isGiftTab?'贈品':(isBizTab?'創業':p.s);
+    const costLabel=isGiftTab?'贈品':(isBizTab?'固定金額':('進貨 NT$'+cost));
+    const priceLabel=isGiftTab?'NT$0':('NT$'+sp);
+    return`<button class="prod-btn${qty>0?' has-qty':''} ${btnClass}" onclick="addToCartByKey(${ai},'${cartKey}')" >
+      ${qty>0?`<div class="qty-badge" onclick="event.stopPropagation();removeFromCartByKey('${cartKey}')">－${qty}</div>`:''}
       <div>
-        <div class="series-label">${p.s}</div>
-        <div class="prod-name">${p.name}</div>
+        <div class="series-label">${seriesLabel}</div>
+        <div class="prod-name">${origP.name}</div>
       </div>
       <div>
-        <div class="prod-cost-label">進貨 NT$${cost}</div>
-        <div class="prod-cost">售 NT$${sp}</div>
+        <div class="prod-cost-label">${costLabel}</div>
+        <div class="prod-cost">${priceLabel}</div>
       </div>
     </button>`;
   }).join('');
@@ -314,19 +362,21 @@ function renderGrid(){
 function addToCart(idx){
   const p=ALL[idx];
   cart[p.name]=(cart[p.name]||0)+1;
-  renderGrid();
-  renderCartPreview();
+  renderGrid();renderCartPreview();
 }
-
+function addToCartByKey(idx,key){
+  cart[key]=(cart[key]||0)+1;
+  renderGrid();renderCartPreview();
+}
 function removeFromCart(e,idx){
-  if(e.preventDefault)e.preventDefault();
+  if(e&&e.preventDefault)e.preventDefault();
   const p=ALL[idx];
-  if(cart[p.name]>0){
-    cart[p.name]--;
-    if(cart[p.name]===0)delete cart[p.name];
-  }
-  renderGrid();
-  renderCartPreview();
+  if(cart[p.name]>0){cart[p.name]--;if(cart[p.name]===0)delete cart[p.name];}
+  renderGrid();renderCartPreview();
+}
+function removeFromCartByKey(key){
+  if(cart[key]>0){cart[key]--;if(cart[key]===0)delete cart[key];}
+  renderGrid();renderCartPreview();
 }
 
 function clearCart(){
@@ -341,17 +391,25 @@ function renderCartPreview(){
   const items=Object.entries(cart).filter(([,q])=>q>0);
   if(!items.length){preview.classList.remove('show');return;}
   preview.classList.add('show');
-  preview.innerHTML=items.map(([name,qty])=>`<div class="cart-row"><span class="cart-row-name">${name}</span><span class="cart-row-qty">×${qty}</span></div>`).join('');
+  preview.innerHTML=items.map(([key,qty])=>{
+    const isGiftKey=key.startsWith('贈品_');
+    const isBizKey=key.startsWith('創業_');
+    const label=isGiftKey?'[贈品] '+key.slice(3):(isBizKey?'[創業] '+key.slice(3):key);
+    return`<div class="cart-row"><span class="cart-row-name">${label}</span><span class="cart-row-qty">×${qty}</span></div>`;
+  }).join('');
 }
 
 function updateSummary(){
   const lv=getLevel(),pt=getSellType();
   let tR=0,tP=0;
-  Object.entries(cart).forEach(([name,qty])=>{
+  Object.entries(cart).forEach(([key,qty])=>{
     if(qty<=0)return;
+    const isGiftKey=key.startsWith('贈品_');
+    const isBizKey=key.startsWith('創業_');
+    const name=isGiftKey?key.slice(3):(isBizKey?key.slice(3):key);
     const p=ALL.find(x=>x.name===name);if(!p)return;
-    const cost=p.costs[lv]||0;
-    const sp=getSellPrice(p,pt);
+    const cost=isGiftKey||isBizKey?0:(p.costs[lv]||0);
+    const sp=isGiftKey?0:(isBizKey?(p.fixed||p.retail[0]||0):getSellPrice(p,pt));
     tR+=sp*qty;tP+=(sp-cost)*qty;
   });
   const avg=tR>0?tP/tR*100:null;
@@ -369,13 +427,17 @@ function saveOrder(){
   const lv=getLevel(),pt=getSellType();
   const note=document.getElementById('orderNote').value.trim();
   let tR=0,tP=0;
-  const orderItems=items.map(([name,qty])=>{
+  const orderItems=items.map(([key,qty])=>{
+    const isGiftKey=key.startsWith('贈品_');
+    const isBizKey=key.startsWith('創業_');
+    const name=isGiftKey?key.slice(3):(isBizKey?key.slice(3):key);
+    const displayName=isGiftKey?'[贈品] '+name:(isBizKey?'[創業] '+name:name);
     const p=ALL.find(x=>x.name===name);
-    const cost=p?p.costs[lv]||0:0;
-    const sp=p?getSellPrice(p,pt):0;
+    const cost=isGiftKey||isBizKey?0:(p?p.costs[lv]||0:0);
+    const sp=isGiftKey?0:(isBizKey?(p?p.fixed||p.retail[0]||0:0):(p?getSellPrice(p,pt):0));
     const rev=sp*qty,profit=(sp-cost)*qty;
     tR+=rev;tP+=profit;
-    return{name,qty,rev,profit,cost};
+    return{name:displayName,qty,rev,profit,cost};
   });
   const now=new Date();
   orders.unshift({
@@ -436,9 +498,13 @@ function renderChart(){
     const d=new Date(now.getFullYear(),now.getMonth()-i,1);
     months.push({y:d.getFullYear(),m:d.getMonth(),label:(d.getMonth()+1)+'月'});
   }
+  const manuals=JSON.parse(localStorage.getItem('jerosse-manuals')||'[]');
   const data=months.map(({y,m,label})=>{
     const mo=orders.filter(o=>{const d=new Date(o.date);return d.getFullYear()===y&&d.getMonth()===m;});
-    const profit=mo.reduce((s,o)=>s+o.profit,0);
+    const orderProfit=mo.reduce((s,o)=>s+o.profit,0);
+    const monthKey=y+'-'+String(m+1).padStart(2,'0');
+    const manual=manuals.find(x=>x.month===monthKey);
+    const profit=orderProfit+(manual?manual.profit:0);
     return{label,profit};
   });
   const maxAbs=Math.max(...data.map(d=>Math.abs(d.profit)),1);
@@ -479,11 +545,53 @@ function renderStats(){
   const sm=document.getElementById('sMargin');sm.textContent=avg!==null?avg.toFixed(1)+'%':'—';sm.className='stat-card-val '+(avg===null?'c-muted':avg>=0?'c-green':'c-red');
   document.getElementById('orderCount').textContent=filtered.length+'筆';
   const list=document.getElementById('ordersList');
-  if(!filtered.length){list.innerHTML='<div class="empty-state">此期間尚無訂單記錄</div>';return;}
+  if(!filtered.length){list.innerHTML='<div class="empty-state">此期間尚無訂單記錄</div>';renderManualList();return;}
   list.innerHTML=filtered.map(o=>{const pc=o.profit>=0?'c-green':'c-red';return`<div class="order-row"><div class="order-top"><div><div class="order-note-text">${o.note||'未備註'} <span class="order-level">· ${o.level}</span></div><div class="order-date">${o.dateStr}</div></div><button class="del-btn" onclick="deleteOrder(${o.id})">刪除</button></div><div class="order-items-str">${o.items.map(i=>i.name+' ×'+i.qty).join('、')}</div><div class="order-nums"><span class="onum c-blue">營收 ${fmt(o.rev)}</span><span class="onum ${pc}">利潤 ${fmt(o.profit)}</span><span class="onum c-muted">${o.margin.toFixed(1)}%</span></div></div>`;}).join('');
+  renderManualList();
 }
 
 function deleteOrder(id){if(!confirm('確定刪除？'))return;orders=orders.filter(o=>o.id!==id);saveStorage();renderStats();}
+
+function addManual(){
+  const month=document.getElementById('manualMonth').value;
+  const profit=parseFloat(document.getElementById('manualProfit').value);
+  if(!month||isNaN(profit)){alert('請填入月份和金額');return;}
+  const manuals=JSON.parse(localStorage.getItem('jerosse-manuals')||'[]');
+  const existing=manuals.findIndex(m=>m.month===month);
+  if(existing>=0){
+    if(!confirm('此月份已有補登資料，要覆蓋嗎？'))return;
+    manuals[existing].profit=profit;
+  } else {
+    manuals.push({month,profit,id:Date.now()});
+  }
+  manuals.sort((a,b)=>b.month.localeCompare(a.month));
+  localStorage.setItem('jerosse-manuals',JSON.stringify(manuals));
+  document.getElementById('manualMonth').value='';
+  document.getElementById('manualProfit').value='';
+  renderStats();
+}
+
+function deleteManual(id){
+  if(!confirm('確定刪除此補登記錄？'))return;
+  const manuals=JSON.parse(localStorage.getItem('jerosse-manuals')||'[]');
+  localStorage.setItem('jerosse-manuals',JSON.stringify(manuals.filter(m=>m.id!==id)));
+  renderStats();
+}
+
+function renderManualList(){
+  const manuals=JSON.parse(localStorage.getItem('jerosse-manuals')||'[]');
+  const el=document.getElementById('manualList');
+  if(!manuals.length){el.innerHTML='<div style="font-size:12px;color:var(--mt-hint);padding:4px 2px">尚無補登記錄</div>';return;}
+  el.innerHTML=manuals.map(m=>{
+    const pc=m.profit>=0?'c-green':'c-red';
+    const [y,mo]=m.month.split('-');
+    return`<div class="manual-item">
+      <span class="manual-item-left">${y}年${parseInt(mo)}月</span>
+      <span class="manual-item-right ${pc}">${m.profit>=0?'+':''}NT$${Math.round(m.profit).toLocaleString()}</span>
+      <button class="manual-del" onclick="deleteManual(${m.id})">✕</button>
+    </div>`;
+  }).join('');
+}
 
 renderTabs();
 renderGrid();
