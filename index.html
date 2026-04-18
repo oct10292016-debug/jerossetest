@@ -63,11 +63,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 .save-btn:active{opacity:0.85}
 
 /* Cart items overlay */
-.cart-preview{display:none;background:var(--mt-surface);border-radius:10px;padding:8px 12px;margin-bottom:8px;max-height:100px;overflow-y:auto}
+.cart-preview{display:none;background:var(--mt-surface);border-radius:12px;padding:8px 10px;margin-bottom:8px;max-height:140px;overflow-y:auto}
 .cart-preview.show{display:block}
-.cart-row{display:flex;justify-content:space-between;font-size:12px;color:var(--mt-text);padding:2px 0}
-.cart-row-name{color:var(--mt-muted)}
-.cart-row-qty{font-weight:500;color:var(--mt-accent)}
+.cart-row{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--mt-text);padding:4px 2px;gap:6px}
+.cart-row-name{color:var(--mt-muted);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cart-row-ctrl{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.cart-ctrl-btn{width:22px;height:22px;border-radius:50%;border:0.5px solid var(--mt-border2);background:var(--mt-card);color:var(--mt-text);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-weight:500}
+.cart-ctrl-btn:active{background:var(--mt-surface2)}
+.cart-row-qty{font-weight:600;color:var(--mt-accent);min-width:20px;text-align:center}
 
 /* Bottom nav */
 .bottom-nav{display:flex;background:var(--mt-card);border-top:0.5px solid var(--mt-border);padding-bottom:var(--safe-bottom);flex-shrink:0}
@@ -227,7 +230,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
     </div>
     <div class="divider"></div>
     <div class="manual-wrap">
-      <div class="manual-title">手動補登淨利（歷史資料）</div>
+      <div class="manual-title">手動補登淨利（每次新增會累加）</div>
       <div class="manual-row">
         <input class="manual-input" id="manualMonth" type="month" style="font-size:13px">
         <input class="manual-input" id="manualProfit" type="number" placeholder="淨利金額">
@@ -328,7 +331,6 @@ function selectSeries(s){
 }
 
 function renderGrid(){
-  const lv=getLevel(),pt=getSellType();
   const isGiftTab=curSeries==='贈品';
   const isBizTab=curSeries==='創業';
   const filtered=isGiftTab
@@ -398,7 +400,15 @@ function renderCartPreview(){
     const isGiftKey=key.startsWith('贈品_');
     const isBizKey=key.startsWith('創業_');
     const label=isGiftKey?'[贈品] '+key.slice(3):(isBizKey?'[創業] '+key.slice(3):key);
-    return`<div class="cart-row"><span class="cart-row-name">${label}</span><span class="cart-row-qty">×${qty}</span></div>`;
+    const safeKey=key.replace(/'/g,"\\'");
+    return`<div class="cart-row">
+      <span class="cart-row-name">${label}</span>
+      <div class="cart-row-ctrl">
+        <button class="cart-ctrl-btn" onclick="removeFromCartByKey('${safeKey}')">－</button>
+        <span class="cart-row-qty">${qty}</span>
+        <button class="cart-ctrl-btn" onclick="cart['${safeKey}']=(cart['${safeKey}']||0)+1;renderGrid();renderCartPreview()">＋</button>
+      </div>
+    </div>`;
   }).join('');
 }
 
@@ -564,8 +574,7 @@ function addManual(){
   const manuals=JSON.parse(localStorage.getItem('jerosse-manuals')||'[]');
   const existing=manuals.findIndex(m=>m.month===month);
   if(existing>=0){
-    if(!confirm('此月份已有補登資料，要覆蓋嗎？'))return;
-    manuals[existing].profit=profit;
+    manuals[existing].profit+=profit;
   } else {
     manuals.push({month,profit,id:Date.now()});
   }
