@@ -331,6 +331,7 @@ function selectSeries(s){
 }
 
 function renderGrid(){
+  const lv=getLevel(),pt=getSellType();
   const isGiftTab=curSeries==='贈品';
   const isBizTab=curSeries==='創業';
   const filtered=isGiftTab
@@ -339,7 +340,6 @@ function renderGrid(){
   const grid=document.getElementById('productGrid');
   grid.innerHTML=filtered.map((p)=>{
     const origP=p._orig||p;
-    const isBizTab=curSeries==='創業';
     const cost=isGiftTab?0:(isBizTab?0:(origP.costs[lv]||0));
     const sp=isGiftTab?0:(isBizTab?(origP.fixed||origP.retail[0]||0):getSellPrice(origP,pt));
     const cartKey=isGiftTab?('贈品_'+origP.name):(isBizTab?('創業_'+origP.name):origP.name);
