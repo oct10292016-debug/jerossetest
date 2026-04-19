@@ -141,6 +141,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 .manual-item-right{font-weight:500}
 .manual-del{background:none;border:none;cursor:pointer;color:var(--mt-hint);font-size:12px;padding:2px 6px;border-radius:6px}
 .manual-del:active{color:var(--mt-red)}
+.stats-tab-bar{display:flex;gap:2px;background:var(--mt-surface);border-radius:12px;padding:3px;margin-bottom:14px}
+.stats-tab{flex:1;padding:8px;text-align:center;font-size:13px;font-weight:500;color:var(--mt-muted);border:none;background:none;border-radius:9px;cursor:pointer}
+.stats-tab.active{background:var(--mt-card);color:var(--mt-text);border:0.5px solid var(--mt-border)}
+.prod-stats-header{display:grid;grid-template-columns:minmax(0,3fr) 60px 80px;gap:4px;padding:6px 10px;font-size:11px;color:var(--mt-muted);letter-spacing:0.3px;text-transform:uppercase;border-bottom:0.5px solid var(--mt-border);margin-bottom:4px}
+.prod-stat-row{display:grid;grid-template-columns:minmax(0,3fr) 60px 80px;gap:4px;padding:10px 10px;font-size:13px;border-bottom:0.5px solid var(--mt-border);align-items:center}
+.prod-stat-row:last-child{border-bottom:none}
+.prod-stat-name{color:var(--mt-text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prod-stat-qty{color:var(--mt-accent);font-weight:600;text-align:center}
+.prod-stat-rev{color:var(--mt-blue);font-weight:500;text-align:right;font-size:12px}
 </style>
 </head>
 <body>
@@ -208,6 +217,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 <!-- Stats Page -->
 <div id="page-stats" class="page" style="display:none;flex-direction:column;flex:1;overflow:hidden">
   <div class="stats-wrap">
+    <div class="stats-tab-bar">
+      <button class="stats-tab active" id="stab-overview" onclick="switchStatsTab('overview')">總覽</button>
+      <button class="stats-tab" id="stab-products" onclick="switchStatsTab('products')">商品統計</button>
+    </div>
+
+    <div id="stats-overview">
     <div class="period-bar">
       <button class="period-btn" onclick="setPeriod('today')">今天</button>
       <button class="period-btn active" onclick="setPeriod('month')">本月</button>
@@ -244,6 +259,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
       <span class="list-count" id="orderCount"></span>
     </div>
     <div class="orders-list" id="ordersList"></div>
+    </div><!-- end stats-overview -->
+
+    <div id="stats-products" style="display:none">
+      <div class="period-bar">
+        <button class="period-btn" onclick="setProdPeriod('today')">今天</button>
+        <button class="period-btn active" onclick="setProdPeriod('month')">本月</button>
+        <button class="period-btn" onclick="setProdPeriod('pick')">選月份</button>
+        <button class="period-btn" onclick="setProdPeriod('all')">全部</button>
+      </div>
+      <div class="month-select-row" id="prodMonthSelectRow" style="display:none">
+        <select class="month-select" id="prodMonthSelect" onchange="renderProductStats()"></select>
+      </div>
+      <div class="prod-stats-header">
+        <span>商品</span>
+        <span>數量</span>
+        <span>金額</span>
+      </div>
+      <div id="prodStatsList"></div>
+    </div>
   </div>
 </div>
 
@@ -453,10 +487,12 @@ function saveOrder(){
     return{name:displayName,qty,rev,profit,cost};
   });
   const now=new Date();
+  const sellTypeVal=document.getElementById('sellType').value;
+  const sellTypeText=document.getElementById('sellType').selectedOptions[0].text.replace('售：','');
   orders.unshift({
     id:Date.now(),date:now.toISOString(),
     dateStr:now.toLocaleDateString('zh-TW',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}),
-    level:lv,note,items:orderItems,rev:tR,profit:tP,margin:tR>0?tP/tR*100:0
+    level:lv,note,sellType:sellTypeText,items:orderItems,rev:tR,profit:tP,margin:tR>0?tP/tR*100:0
   });
   saveStorage();
   clearCart();
@@ -548,6 +584,69 @@ function jumpToMonth(idx){
   populateMonthSelect();
   document.getElementById('monthSelect').value=key;
   renderStats();
+}
+
+let curStatsTab='overview';
+let curProdPeriod='month';
+
+function switchStatsTab(tab){
+  curStatsTab=tab;
+  document.getElementById('stab-overview').classList.toggle('active',tab==='overview');
+  document.getElementById('stab-products').classList.toggle('active',tab==='products');
+  document.getElementById('stats-overview').style.display=tab==='overview'?'block':'none';
+  document.getElementById('stats-products').style.display=tab==='products'?'block':'none';
+  if(tab==='products')renderProductStats();
+}
+
+function setProdPeriod(p){
+  curProdPeriod=p;
+  document.querySelectorAll('#stats-products .period-btn').forEach((b,i)=>b.classList.toggle('active',['today','month','pick','all'][i]===p));
+  const pickRow=document.getElementById('prodMonthSelectRow');
+  pickRow.style.display=p==='pick'?'flex':'none';
+  if(p==='pick'){
+    const sel=document.getElementById('prodMonthSelect');
+    const now=new Date();
+    const months=[...new Set(orders.map(o=>{const d=new Date(o.date);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}))].sort().reverse();
+    const thisMonth=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+    if(!months.includes(thisMonth))months.unshift(thisMonth);
+    sel.innerHTML=months.map(m=>`<option value="${m}">${m.replace('-','年')}月</option>`).join('');
+  }
+  renderProductStats();
+}
+
+function filterOrdersForProd(){
+  const now=new Date();
+  if(curProdPeriod==='today'){const t=now.toDateString();return orders.filter(o=>new Date(o.date).toDateString()===t);}
+  if(curProdPeriod==='month'){return orders.filter(o=>{const d=new Date(o.date);return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();});}
+  if(curProdPeriod==='pick'){
+    const val=document.getElementById('prodMonthSelect').value;
+    if(!val)return[];
+    const [y,m]=val.split('-').map(Number);
+    return orders.filter(o=>{const d=new Date(o.date);return d.getFullYear()===y&&d.getMonth()===m-1;});
+  }
+  return orders;
+}
+
+function renderProductStats(){
+  const filtered=filterOrdersForProd();
+  const map={};
+  filtered.forEach(o=>{
+    const sellLabel=o.sellType||'';
+    o.items.forEach(item=>{
+      const key=sellLabel?sellLabel+'-'+item.name:item.name;
+      if(!map[key])map[key]={name:key,qty:0,rev:0};
+      map[key].qty+=item.qty;
+      map[key].rev+=item.rev;
+    });
+  });
+  const sorted=Object.values(map).sort((a,b)=>b.qty-a.qty);
+  const list=document.getElementById('prodStatsList');
+  if(!sorted.length){list.innerHTML='<div class="empty-state" style="margin-top:12px">此期間尚無記錄</div>';return;}
+  list.innerHTML=sorted.map(r=>`<div class="prod-stat-row">
+    <div class="prod-stat-name">${r.name}</div>
+    <div class="prod-stat-qty">${r.qty}</div>
+    <div class="prod-stat-rev">${r.rev>0?fmt(r.rev):'-'}</div>
+  </div>`).join('');
 }
 
 function getManualProfitForPeriod(){
