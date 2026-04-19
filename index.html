@@ -152,23 +152,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
     <div class="header-row">
       <span class="app-title">婕樂纖</span>
       <select class="level-select" id="myLevel" onchange="renderGrid()">
-        <option value="皇家輔導">皇家輔導</option>
-        <option value="一級輔導">一級輔導</option>
-        <option value="二級輔導">二級輔導</option>
-        <option value="三級輔導">三級輔導</option>
-        <option value="三級零售">三級零售</option>
-        <option value="實習" selected>實習</option>
+        <option value="皇家輔導">我：皇家</option>
+        <option value="一級輔導">我：一級</option>
+        <option value="二級輔導">我：二級</option>
+        <option value="三級輔導">我：三級輔</option>
+        <option value="三級零售">我：三級零</option>
+        <option value="實習" selected>我：實習</option>
       </select>
       <select class="sell-type-select" id="sellType" onchange="renderGrid()">
-        <option value="r0">零售價</option>
-        <option value="r1">任兩盒</option>
-        <option value="r2">VIP價</option>
-        <option disabled>── 進貨價 ──</option>
-        <option value="c_一級輔導">一級輔導進貨</option>
-        <option value="c_二級輔導">二級輔導進貨</option>
-        <option value="c_三級輔導">三級輔導進貨</option>
-        <option value="c_三級零售">三級零售進貨</option>
-        <option value="c_實習">實習進貨</option>
+        <option value="r0">售：零售價</option>
+        <option value="r1">售：任兩盒</option>
+        <option value="r2">售：VIP價</option>
+        <option disabled>── 售：進貨價 ──</option>
+        <option value="c_一級輔導">售：一級進貨</option>
+        <option value="c_二級輔導">售：二級進貨</option>
+        <option value="c_三級輔導">售：三級輔進貨</option>
+        <option value="c_三級零售">售：三級零進貨</option>
+        <option value="c_實習">售：實習進貨</option>
       </select>
     </div>
   </div>
@@ -347,8 +347,8 @@ function renderGrid(){
     const ai=ALL.indexOf(origP);
     const btnClass=isGiftTab?'gift-btn':(isBizTab?(sp<0?'biz-btn expense-btn':'biz-btn'):'');
     const seriesLabel=isGiftTab?'贈品':(isBizTab?'創業':p.s);
-    const costLabel=isGiftTab?'贈品':(isBizTab?'固定金額':('進貨 NT$'+cost));
-    const priceLabel=isGiftTab?'NT$0':(sp<0?'－NT$'+Math.abs(sp):'NT$'+sp);
+    const costLabel=isGiftTab?'贈品':(isBizTab?'固定金額':('我的進貨 NT$'+cost));
+    const priceLabel=isGiftTab?'NT$0':(sp<0?'支出 NT$'+Math.abs(sp):'售價 NT$'+sp);
     return`<button class="prod-btn${qty>0?' has-qty':''} ${btnClass}" onclick="addToCartByKey(${ai},'${cartKey}')" >
       ${qty>0?`<div class="qty-badge" onclick="event.stopPropagation();removeFromCartByKey('${cartKey}')">－${qty}</div>`:''}
       <div>
@@ -550,11 +550,31 @@ function jumpToMonth(idx){
   renderStats();
 }
 
+function getManualProfitForPeriod(){
+  const manuals=JSON.parse(localStorage.getItem('jerosse-manuals')||'[]');
+  const now=new Date();
+  if(curPeriod==='today') return 0;
+  if(curPeriod==='all') return manuals.reduce((s,m)=>s+m.profit,0);
+  if(curPeriod==='month'){
+    const key=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+    const m=manuals.find(x=>x.month===key);
+    return m?m.profit:0;
+  }
+  if(curPeriod==='pick'){
+    const val=document.getElementById('monthSelect').value;
+    const m=manuals.find(x=>x.month===val);
+    return m?m.profit:0;
+  }
+  return 0;
+}
+
 function renderStats(){
   renderChart();
   const filtered=filterOrders();let tR=0,tP=0;filtered.forEach(o=>{tR+=o.rev;tP+=o.profit;});
+  const manualP=getManualProfitForPeriod();
+  tP+=manualP;
   const avg=tR>0?tP/tR*100:null;
-  document.getElementById('sOrders').textContent=filtered.length;
+  document.getElementById('sOrders').textContent=filtered.length+(manualP!==0?' +補登':'');
   document.getElementById('sRev').textContent=fmt(tR);
   const sp=document.getElementById('sProfit');sp.textContent=fmt(tP);sp.className='stat-card-val '+(tP>=0?'c-green':'c-red');
   const sm=document.getElementById('sMargin');sm.textContent=avg!==null?avg.toFixed(1)+'%':'—';sm.className='stat-card-val '+(avg===null?'c-muted':avg>=0?'c-green':'c-red');
