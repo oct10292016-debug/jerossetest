@@ -150,6 +150,33 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
 .prod-stat-name{color:var(--mt-text);font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .prod-stat-qty{color:var(--mt-accent);font-weight:600;text-align:center}
 .prod-stat-rev{color:var(--mt-blue);font-weight:500;text-align:right;font-size:12px}
+
+/* 客戶單據 */
+.receipt-backdrop{display:none;position:fixed;inset:0;background:rgba(44,36,32,0.6);z-index:200;align-items:flex-end;justify-content:center}
+.receipt-backdrop.open{display:flex}
+.receipt-sheet{background:#FAF6F1;border-radius:24px 24px 0 0;width:100%;max-height:92vh;overflow-y:auto;padding:20px 20px calc(24px + var(--safe-bottom))}
+.receipt-handle{width:36px;height:4px;background:var(--mt-border2);border-radius:2px;margin:0 auto 20px}
+.receipt-body{background:#fff;border-radius:16px;padding:20px;margin-bottom:16px}
+.receipt-brand{text-align:center;margin-bottom:16px;padding-bottom:16px;border-bottom:0.5px dashed var(--mt-border2)}
+.receipt-brand-name{font-size:18px;font-weight:600;color:var(--mt-text);letter-spacing:-0.3px}
+.receipt-brand-sub{font-size:12px;color:var(--mt-muted);margin-top:3px}
+.receipt-customer{font-size:13px;color:var(--mt-muted);margin-bottom:16px;padding-bottom:12px;border-bottom:0.5px dashed var(--mt-border2)}
+.receipt-customer span{color:var(--mt-text);font-weight:500}
+.receipt-items{margin-bottom:16px}
+.receipt-item{display:grid;grid-template-columns:minmax(0,3fr) 40px 70px;gap:6px;padding:8px 0;border-bottom:0.5px solid #F2EBE4;align-items:center}
+.receipt-item:last-child{border-bottom:none}
+.receipt-item-name{font-size:13px;color:var(--mt-text);font-weight:500}
+.receipt-item-qty{font-size:13px;color:var(--mt-muted);text-align:center}
+.receipt-item-price{font-size:13px;color:var(--mt-text);text-align:right;font-weight:500}
+.receipt-total{display:flex;justify-content:space-between;align-items:center;padding-top:14px;border-top:1.5px solid var(--mt-text);margin-top:8px}
+.receipt-total-label{font-size:15px;font-weight:600;color:var(--mt-text)}
+.receipt-total-val{font-size:20px;font-weight:700;color:var(--mt-accent);letter-spacing:-0.5px}
+.receipt-footer{text-align:center;font-size:11px;color:var(--mt-hint);margin-top:14px;padding-top:12px;border-top:0.5px dashed var(--mt-border2)}
+.receipt-date{font-size:12px;color:var(--mt-muted);text-align:center;margin-top:4px}
+.receipt-actions{display:flex;gap:8px}
+.receipt-close-btn{flex:1;padding:13px;background:var(--mt-surface2);color:var(--mt-muted);border:none;border-radius:14px;font-size:14px;font-weight:500;cursor:pointer}
+.preview-btn{padding:10px 16px;background:var(--mt-surface2);color:var(--mt-accent);border:0.5px solid var(--mt-border2);border-radius:12px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
+.preview-btn:active{opacity:0.85}
 </style>
 </head>
 <body>
@@ -209,6 +236,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
     </div>
     <div class="bottom-actions">
       <input class="note-input-small" id="orderNote" type="text" placeholder="備註（客戶名稱）">
+      <button class="preview-btn" onclick="previewReceipt()">單據</button>
       <button class="save-btn" onclick="saveOrder()">儲存訂單</button>
     </div>
   </div>
@@ -277,6 +305,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text',sans-serif;backg
         <span>金額</span>
       </div>
       <div id="prodStatsList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Receipt Modal -->
+<div class="receipt-backdrop" id="receiptModal">
+  <div class="receipt-sheet">
+    <div class="receipt-handle"></div>
+    <div class="receipt-body" id="receiptBody"></div>
+    <div class="receipt-actions">
+      <button class="receipt-close-btn" onclick="closeReceipt()">關閉</button>
     </div>
   </div>
 </div>
@@ -724,6 +763,58 @@ function renderManualList(){
       <button class="manual-del" onclick="deleteManual(${m.id})">✕</button>
     </div>`;
   }).join('');
+}
+
+function previewReceipt(){
+  const items=Object.entries(cart).filter(([,q])=>q>0);
+  if(!items.length){alert('請先選擇商品');return;}
+  const lv=getLevel(),pt=getSellType();
+  const note=document.getElementById('orderNote').value.trim();
+  const now=new Date();
+  const dateStr=now.toLocaleDateString('zh-TW',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+  let total=0;
+  const rowsHtml=items.map(([key,qty])=>{
+    const isGiftKey=key.startsWith('贈品_');
+    const isBizKey=key.startsWith('創業_');
+    const name=isGiftKey?key.slice(3):(isBizKey?key.slice(3):key);
+    const displayName=isGiftKey?'[贈品] '+name:(isBizKey?name:name);
+    const p=ALL.find(x=>x.name===name);
+    const sp=isGiftKey?0:(isBizKey?(p?p.fixed||p.retail[0]||0:0):(p?getSellPrice(p,pt):0));
+    const lineTotal=sp*qty;
+    total+=lineTotal;
+    return`<div class="receipt-item">
+      <div class="receipt-item-name">${displayName}</div>
+      <div class="receipt-item-qty">×${qty}</div>
+      <div class="receipt-item-price">${sp===0?'贈品':fmt(lineTotal)}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('receiptBody').innerHTML=`
+    <div class="receipt-brand">
+      <div class="receipt-brand-name">婕樂纖 JEROSSE</div>
+      <div class="receipt-brand-sub">健康美麗，從這裡開始</div>
+    </div>
+    ${note?`<div class="receipt-customer">客戶：<span>${note}</span></div>`:''}
+    <div class="receipt-items">
+      <div style="display:grid;grid-template-columns:minmax(0,3fr) 40px 70px;gap:6px;padding-bottom:8px;margin-bottom:4px;border-bottom:0.5px solid var(--mt-border2)">
+        <span style="font-size:11px;color:var(--mt-muted)">商品</span>
+        <span style="font-size:11px;color:var(--mt-muted);text-align:center">數量</span>
+        <span style="font-size:11px;color:var(--mt-muted);text-align:right">金額</span>
+      </div>
+      ${rowsHtml}
+    </div>
+    <div class="receipt-total">
+      <span class="receipt-total-label">合計</span>
+      <span class="receipt-total-val">${fmt(total)}</span>
+    </div>
+    <div class="receipt-footer">感謝您的購買，祝您使用愉快</div>
+    <div class="receipt-date">${dateStr}</div>
+  `;
+  document.getElementById('receiptModal').classList.add('open');
+}
+
+function closeReceipt(){
+  document.getElementById('receiptModal').classList.remove('open');
 }
 
 renderTabs();
